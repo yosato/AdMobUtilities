@@ -13,9 +13,9 @@ public struct BannerAdView: View {
     public var body: some View {
         VStack {
             if isAdMobReady {
-                RealBannerAdView(adUnitID: adUnitID)
+                RealBannerAdView(adUnitID: adUnitID).frame(height:50)
             } else {
-                PlaceholderAdView()
+                PlaceholderAdView().frame(height:50)
             }
         }
         .onAppear {
