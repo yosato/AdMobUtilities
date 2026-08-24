@@ -31,4 +31,18 @@ public enum AdConsentManager {
             }
         }
     }
+
+    /// Whether the user needs a way to revisit/revoke their consent choice (GDPR requirement) —
+    /// check this before showing a "privacy choices" entry point in app UI, since it's only
+    /// meaningful for users the consent flow actually applied to.
+    public static var privacyOptionsRequired: Bool {
+        ConsentInformation.shared.privacyOptionsRequirementStatus == .required
+    }
+
+    public static func presentPrivacyOptionsForm(
+        from viewController: UIViewController?,
+        completion: @escaping (Error?) -> Void
+    ) {
+        ConsentForm.presentPrivacyOptionsForm(from: viewController, completionHandler: completion)
+    }
 }
