@@ -7,13 +7,15 @@ let package = Package(
     products: [
         .library(name: "AdMobUtilities", targets: ["AdMobUtilities"])
     ],
-    dependencies: [        .package(url: "https://github.com/googleads/swift-package-manager-google-mobile-ads.git", from: "13.6.0")
+    dependencies: [        .package(url: "https://github.com/googleads/swift-package-manager-google-mobile-ads.git", from: "13.6.0"),
+        .package(url: "https://github.com/googleads/swift-package-manager-google-user-messaging-platform.git", from: "3.0.0")
 ],
     targets: [
         .target(
             name: "AdMobUtilities",
             dependencies: [
-                .product(name: "GoogleMobileAds", package: "swift-package-manager-google-mobile-ads")
+                .product(name: "GoogleMobileAds", package: "swift-package-manager-google-mobile-ads"),
+                .product(name: "GoogleUserMessagingPlatform", package: "swift-package-manager-google-user-messaging-platform")
 
             ]
         )
