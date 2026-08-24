@@ -12,7 +12,7 @@ public enum AdConsentManager {
         from viewController: UIViewController?,
         completion: @escaping (Bool) -> Void
     ) {
-        let parameters = UMPRequestParameters()
+        let parameters = RequestParameters()
         ConsentInformation.shared.requestConsentInfoUpdate(with: parameters) { error in
             if let error = error {
                 print("⚠️ UMP consent info update failed: \(error)")
