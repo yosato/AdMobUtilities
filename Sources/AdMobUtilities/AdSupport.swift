@@ -15,15 +15,17 @@ public enum AdConsentManager {
         let parameters = RequestParameters()
         ConsentInformation.shared.requestConsentInfoUpdate(with: parameters) { error in
             print("🟡 UMP requestConsentInfoUpdate done: status=\(ConsentInformation.shared.consentStatus.rawValue), formStatus=\(ConsentInformation.shared.formStatus.rawValue), canRequestAds=\(ConsentInformation.shared.canRequestAds), error=\(String(describing: error))")
+            // canRequestAds, not the presence of an error, is the authoritative signal here —
+            // e.g. "no consent forms configured for this app ID" surfaces as a non-nil error
+            // even when canRequestAds is already true (nothing to show, fine to proceed), so
+            // bailing out on any error would wrongly block ad loads in that case.
             if let error = error {
-                print("⚠️ UMP consent info update failed: \(error)")
-                completion(false)
-                return
+                print("⚠️ UMP consent info update reported an error (non-fatal if canRequestAds is true): \(error)")
             }
             ConsentForm.loadAndPresentIfRequired(from: viewController) { error in
                 print("🟡 UMP loadAndPresentIfRequired done: status=\(ConsentInformation.shared.consentStatus.rawValue), canRequestAds=\(ConsentInformation.shared.canRequestAds), error=\(String(describing: error))")
                 if let error = error {
-                    print("⚠️ UMP consent form failed: \(error)")
+                    print("⚠️ UMP consent form reported an error (non-fatal if canRequestAds is true): \(error)")
                 }
                 completion(ConsentInformation.shared.canRequestAds)
             }
