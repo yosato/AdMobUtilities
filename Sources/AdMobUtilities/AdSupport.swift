@@ -14,12 +14,14 @@ public enum AdConsentManager {
     ) {
         let parameters = RequestParameters()
         ConsentInformation.shared.requestConsentInfoUpdate(with: parameters) { error in
+            print("🟡 UMP requestConsentInfoUpdate done: status=\(ConsentInformation.shared.consentStatus.rawValue), formStatus=\(ConsentInformation.shared.formStatus.rawValue), canRequestAds=\(ConsentInformation.shared.canRequestAds), error=\(String(describing: error))")
             if let error = error {
                 print("⚠️ UMP consent info update failed: \(error)")
                 completion(false)
                 return
             }
             ConsentForm.loadAndPresentIfRequired(from: viewController) { error in
+                print("🟡 UMP loadAndPresentIfRequired done: status=\(ConsentInformation.shared.consentStatus.rawValue), canRequestAds=\(ConsentInformation.shared.canRequestAds), error=\(String(describing: error))")
                 if let error = error {
                     print("⚠️ UMP consent form failed: \(error)")
                 }
