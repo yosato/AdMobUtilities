@@ -18,7 +18,14 @@ public final class NativeAdLoader: NSObject, ObservableObject {
 
     public func load() {
         guard let rootVC = rootViewController() else { return }
-        let loader = AdLoader(adUnitID: adUnitID, rootViewController: rootVC, adTypes: [.native], options: nil)
+        // landscape, not .any/.unknown (the prior nil-options default): a wider-than-tall
+        // creative gives a shorter height at a fixed card width, unlike a square/portrait one.
+        // This is the SDK's actual documented lever for influencing creative shape — everything
+        // tried purely in the rendering layer (fixed height, narrower mediaView, narrower card)
+        // was ignored by some creatives' own internal sizing regardless of our constraints.
+        let mediaOptions = NativeAdMediaAdLoaderOptions()
+        mediaOptions.mediaAspectRatio = .landscape
+        let loader = AdLoader(adUnitID: adUnitID, rootViewController: rootVC, adTypes: [.native], options: [mediaOptions])
         loader.delegate = self
         adLoader = loader
         loader.load(Request())
