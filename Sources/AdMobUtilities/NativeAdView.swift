@@ -52,6 +52,7 @@ extension NativeAdLoader: NativeAdLoaderDelegate {
         // media ads render via the same GADWebAdView/WKWebView path without reporting as video.
         // Those creatives also lack a static mainImage, so treat that as the broader signal.
         let rendersViaWebview = nativeAd.mediaContent.hasVideoContent || nativeAd.mediaContent.mainImage == nil
+        print("🔎 didReceive hasVideoContent=\(nativeAd.mediaContent.hasVideoContent) mainImage=\(nativeAd.mediaContent.mainImage == nil ? "nil" : "present") retriesLeft=\(videoRetriesRemaining) willRetry=\(rendersViaWebview && videoRetriesRemaining > 0)")
         if rendersViaWebview, videoRetriesRemaining > 0 {
             videoRetriesRemaining -= 1
             load()
