@@ -19,7 +19,7 @@ public final class NativeAdLoader: NSObject, ObservableObject {
     // SDK. Rather than keep fighting that, shift away from the erroring path entirely: discard a
     // webview-rendered creative and request again — capped so a run of such fill can't loop
     // forever.
-    private var webviewRetriesRemaining = 3
+    private var webviewRetriesRemaining = 20
 
     public init(adUnitID: String) {
         self.adUnitID = adUnitID
