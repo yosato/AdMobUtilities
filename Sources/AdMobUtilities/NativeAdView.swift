@@ -25,7 +25,15 @@ public final class NativeAdLoader: NSObject, ObservableObject {
         // was ignored by some creatives' own internal sizing regardless of our constraints.
         let mediaOptions = NativeAdMediaAdLoaderOptions()
         mediaOptions.mediaAspectRatio = .landscape
-        let loader = AdLoader(adUnitID: adUnitID, rootViewController: rootVC, adTypes: [.native], options: [mediaOptions])
+        // the SDK's own default play/pause/mute control overlay (visible on a video creative) is
+        // a separate, SDK-owned rendering layer we have zero control over — a real suspect for
+        // content painting past adView's bounds regardless of our own constraints/clipsToBounds.
+        // Requesting custom controls removes that overlay entirely; we don't build replacement
+        // controls, so video just autoplays muted with none — an acceptable simplification while
+        // isolating whether that overlay was the actual cause.
+        let videoOptions = VideoOptions()
+        videoOptions.customControlsRequested = true
+        let loader = AdLoader(adUnitID: adUnitID, rootViewController: rootVC, adTypes: [.native], options: [mediaOptions, videoOptions])
         loader.delegate = self
         adLoader = loader
         loader.load(Request())
