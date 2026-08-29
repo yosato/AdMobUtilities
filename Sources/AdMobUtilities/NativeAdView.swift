@@ -32,7 +32,7 @@ public final class NativeAdLoader: NSObject, ObservableObject {
         // controls, so video just autoplays muted with none — an acceptable simplification while
         // isolating whether that overlay was the actual cause.
         let videoOptions = VideoOptions()
-        videoOptions.customControlsRequested = true
+        videoOptions.areCustomControlsRequested = true
         let loader = AdLoader(adUnitID: adUnitID, rootViewController: rootVC, adTypes: [.native], options: [mediaOptions, videoOptions])
         loader.delegate = self
         adLoader = loader
