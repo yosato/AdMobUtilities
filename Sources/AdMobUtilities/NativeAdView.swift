@@ -18,10 +18,12 @@ public final class NativeAdLoader: NSObject, ObservableObject {
     // a float-noise overflow, a WKWebView-internal scroll indicator), yet it still surfaces on
     // some creatives. Discard a webview-rendered creative and request again rather than risk
     // displaying one — capped so a run of such fill can't loop forever.
-    // TEMPORARY bump to 1000, one-time test — checking whether this test ad pool ever contains a
-    // static-image creative at all, since 20 consecutive retries all day never found one. Revert
-    // to 20 after this test.
-    private var webviewRetriesRemaining = 1000
+    // 20: covers even a pessimistic 15-20% real-world static-image fill rate with >95% odds of
+    // landing one before giving up (a 1000-retry test today confirmed this specific test ad pool
+    // is ~100% video, so it can't validate that assumption — this is a bet on real production
+    // inventory being more diverse than Google's fixed test rotation). Each retry is a real
+    // network round-trip in production, so much higher risks a visibly slow ad load.
+    private var webviewRetriesRemaining = 20
 
     public init(adUnitID: String) {
         self.adUnitID = adUnitID
@@ -53,8 +55,9 @@ public final class NativeAdLoader: NSObject, ObservableObject {
 
 extension NativeAdLoader: NativeAdLoaderDelegate {
     public func adLoader(_ adLoader: AdLoader, didReceive nativeAd: NativeAd) {
-        // TEMPORARY — identifying which specific creative got served each retry.
-        print("🔎 creative headline=\(nativeAd.headline ?? "nil") advertiser=\(nativeAd.advertiser ?? "nil") duration=\(nativeAd.mediaContent.duration) aspectRatio=\(nativeAd.mediaContent.aspectRatio) hasVideoContent=\(nativeAd.mediaContent.hasVideoContent) mainImage=\(nativeAd.mediaContent.mainImage == nil ? "nil" : "present") retriesLeft=\(webviewRetriesRemaining)")
+        // TEMPORARY — identifying which specific creative got served each retry. Commented out,
+        // not deleted.
+        // print("🔎 creative headline=\(nativeAd.headline ?? "nil") advertiser=\(nativeAd.advertiser ?? "nil") duration=\(nativeAd.mediaContent.duration) aspectRatio=\(nativeAd.mediaContent.aspectRatio) hasVideoContent=\(nativeAd.mediaContent.hasVideoContent) mainImage=\(nativeAd.mediaContent.mainImage == nil ? "nil" : "present") retriesLeft=\(webviewRetriesRemaining)")
         let rendersViaWebview = nativeAd.mediaContent.hasVideoContent || nativeAd.mediaContent.mainImage == nil
         if rendersViaWebview {
             if webviewRetriesRemaining > 0 {
@@ -64,7 +67,7 @@ extension NativeAdLoader: NativeAdLoaderDelegate {
                 // TEMPORARY — distinguishing "we gave up" (this line) from "the ad server gave
                 // up" (the didFailToReceiveAdWithError print below), since a stopped retry chain
                 // could be caused by either one, and only this line means our own cap was hit.
-                print("🔎 RETRY CAP HIT — webviewRetriesRemaining reached 0, giving up ourselves")
+                // print("🔎 RETRY CAP HIT — webviewRetriesRemaining reached 0, giving up ourselves")
             }
             return
         }
@@ -74,7 +77,7 @@ extension NativeAdLoader: NativeAdLoaderDelegate {
     public func adLoader(_ adLoader: AdLoader, didFailToReceiveAdWithError error: Error) {
         // TEMPORARY — see the retry-cap print above: this firing means the AD SERVER stopped the
         // chain (no fill / throttled / rate-limited), not our own retry cap.
-        print("🔎 AD SERVER FAILURE — didFailToReceiveAdWithError fired, chain stopped server-side")
+        // print("🔎 AD SERVER FAILURE — didFailToReceiveAdWithError fired, chain stopped server-side")
         print("⚠️ native ad failed to load: \(error)")
     }
 }
