@@ -48,7 +48,11 @@ public final class NativeAdLoader: NSObject, ObservableObject {
 
 extension NativeAdLoader: NativeAdLoaderDelegate {
     public func adLoader(_ adLoader: AdLoader, didReceive nativeAd: NativeAd) {
-        if nativeAd.mediaContent.hasVideoContent, videoRetriesRemaining > 0 {
+        // hasVideoContent alone doesn't catch every webview-rendered creative — some HTML5/rich
+        // media ads render via the same GADWebAdView/WKWebView path without reporting as video.
+        // Those creatives also lack a static mainImage, so treat that as the broader signal.
+        let rendersViaWebview = nativeAd.mediaContent.hasVideoContent || nativeAd.mediaContent.mainImage == nil
+        if rendersViaWebview, videoRetriesRemaining > 0 {
             videoRetriesRemaining -= 1
             load()
             return
