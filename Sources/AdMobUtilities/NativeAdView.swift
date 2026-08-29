@@ -11,6 +11,15 @@ public final class NativeAdLoader: NSObject, ObservableObject {
     @Published public var nativeAd: NativeAd?
     private var adLoader: AdLoader?
     private let adUnitID: String
+    // video (and other webview-rendered) creatives render via an SDK-owned GADWebAdView/WKWebView
+    // that has repeatedly tripped AdMob's own "assets outside native ad view" validator — every
+    // fixable layout-level cause was found and fixed (AdChoices positioning, a float-noise
+    // overflow, a WKWebView-internal scroll indicator), yet the error persists, pointing at
+    // something inside the webview's own rendered content that's unreachable from outside the
+    // SDK. Rather than keep fighting that, shift away from the erroring path entirely: discard a
+    // webview-rendered creative and request again — capped so a run of such fill can't loop
+    // forever.
+    private var webviewRetriesRemaining = 3
 
     public init(adUnitID: String) {
         self.adUnitID = adUnitID
@@ -42,6 +51,19 @@ public final class NativeAdLoader: NSObject, ObservableObject {
 
 extension NativeAdLoader: NativeAdLoaderDelegate {
     public func adLoader(_ adLoader: AdLoader, didReceive nativeAd: NativeAd) {
+        // TEMPORARY — identifying which specific creative got served, to tell apart "same
+        // creative, validator result still flips" (a race/flakiness in the check itself) from
+        // "different creative each time" (only some video assets trip the bug).
+        print("🔎 creative headline=\(nativeAd.headline ?? "nil") advertiser=\(nativeAd.advertiser ?? "nil") duration=\(nativeAd.mediaContent.duration) aspectRatio=\(nativeAd.mediaContent.aspectRatio)")
+        // hasVideoContent alone doesn't catch every webview-rendered creative — some HTML5/rich
+        // media ads render via the same GADWebAdView/WKWebView path without reporting as video.
+        // Those creatives also lack a static mainImage, so treat that as the broader signal.
+        let rendersViaWebview = nativeAd.mediaContent.hasVideoContent || nativeAd.mediaContent.mainImage == nil
+        if rendersViaWebview, webviewRetriesRemaining > 0 {
+            webviewRetriesRemaining -= 1
+            load()
+            return
+        }
         self.nativeAd = nativeAd
     }
 
