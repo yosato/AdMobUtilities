@@ -11,15 +11,17 @@ public final class NativeAdLoader: NSObject, ObservableObject {
     @Published public var nativeAd: NativeAd?
     private var adLoader: AdLoader?
     private let adUnitID: String
-    // video (and other webview-rendered) creatives render via an SDK-owned GADWebAdView/WKWebView
-    // that has repeatedly tripped AdMob's own "assets outside native ad view" validator — every
-    // fixable layout-level cause was found and fixed (AdChoices positioning, a float-noise
-    // overflow, a WKWebView-internal scroll indicator), yet the error persists, pointing at
-    // something inside the webview's own rendered content that's unreachable from outside the
-    // SDK. Rather than keep fighting that, shift away from the erroring path entirely: discard a
-    // webview-rendered creative and request again — capped so a run of such fill can't loop
-    // forever.
-    private var webviewRetriesRemaining = 20
+    // video (and other webview-rendered) creatives sometimes trip AdMob's own "assets outside
+    // native ad view" validator — a known, long-open issue in Google's SDK (matching public
+    // GitHub issues against the same underlying SDK), not something reachable from this app's
+    // code: every layout-level cause we could control was found and fixed (AdChoices positioning,
+    // a float-noise overflow, a WKWebView-internal scroll indicator), yet it still surfaces on
+    // some creatives. Discard a webview-rendered creative and request again rather than risk
+    // displaying one — capped so a run of such fill can't loop forever.
+    // TEMPORARY bump to 1000, one-time test — checking whether this test ad pool ever contains a
+    // static-image creative at all, since 20 consecutive retries all day never found one. Revert
+    // to 20 after this test.
+    private var webviewRetriesRemaining = 1000
 
     public init(adUnitID: String) {
         self.adUnitID = adUnitID
@@ -51,29 +53,28 @@ public final class NativeAdLoader: NSObject, ObservableObject {
 
 extension NativeAdLoader: NativeAdLoaderDelegate {
     public func adLoader(_ adLoader: AdLoader, didReceive nativeAd: NativeAd) {
-        // TEMPORARY — identifying which specific creative got served, to tell apart "same
-        // creative, validator result still flips" (a race/flakiness in the check itself) from
-        // "different creative each time" (only some video assets trip the bug).
-        print("🔎 creative headline=\(nativeAd.headline ?? "nil") advertiser=\(nativeAd.advertiser ?? "nil") duration=\(nativeAd.mediaContent.duration) aspectRatio=\(nativeAd.mediaContent.aspectRatio)")
-        // hasVideoContent alone doesn't catch every webview-rendered creative — some HTML5/rich
-        // media ads render via the same GADWebAdView/WKWebView path without reporting as video.
-        // Those creatives also lack a static mainImage, so treat that as the broader signal.
+        // TEMPORARY — identifying which specific creative got served each retry.
+        print("🔎 creative headline=\(nativeAd.headline ?? "nil") advertiser=\(nativeAd.advertiser ?? "nil") duration=\(nativeAd.mediaContent.duration) aspectRatio=\(nativeAd.mediaContent.aspectRatio) hasVideoContent=\(nativeAd.mediaContent.hasVideoContent) mainImage=\(nativeAd.mediaContent.mainImage == nil ? "nil" : "present") retriesLeft=\(webviewRetriesRemaining)")
         let rendersViaWebview = nativeAd.mediaContent.hasVideoContent || nativeAd.mediaContent.mainImage == nil
         if rendersViaWebview {
             if webviewRetriesRemaining > 0 {
                 webviewRetriesRemaining -= 1
                 load()
+            } else {
+                // TEMPORARY — distinguishing "we gave up" (this line) from "the ad server gave
+                // up" (the didFailToReceiveAdWithError print below), since a stopped retry chain
+                // could be caused by either one, and only this line means our own cap was hit.
+                print("🔎 RETRY CAP HIT — webviewRetriesRemaining reached 0, giving up ourselves")
             }
-            // Retries exhausted: leave nativeAd nil rather than falling back to displaying a
-            // webview-rendered creative — every one tested (three distinct advertisers, verified
-            // with a clean, violation-free frame measurement each time) still tripped the
-            // validator. Better to skip the slot than guarantee showing a flagged ad.
             return
         }
         self.nativeAd = nativeAd
     }
 
     public func adLoader(_ adLoader: AdLoader, didFailToReceiveAdWithError error: Error) {
+        // TEMPORARY — see the retry-cap print above: this firing means the AD SERVER stopped the
+        // chain (no fill / throttled / rate-limited), not our own retry cap.
+        print("🔎 AD SERVER FAILURE — didFailToReceiveAdWithError fired, chain stopped server-side")
         print("⚠️ native ad failed to load: \(error)")
     }
 }
