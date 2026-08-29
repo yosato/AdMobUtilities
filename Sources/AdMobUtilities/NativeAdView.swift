@@ -11,6 +11,12 @@ public final class NativeAdLoader: NSObject, ObservableObject {
     @Published public var nativeAd: NativeAd?
     private var adLoader: AdLoader?
     private let adUnitID: String
+    // video creatives render via an SDK-owned webview (GADWebAdView inside MediaView) that has
+    // repeatedly ignored every layout constraint/clip we've tried, tripping AdMob's own "assets
+    // outside native ad view" validator independent of anything in this app's code. Rather than
+    // keep fighting that rendering path, videoRetriesRemaining lets didReceive discard a video
+    // creative and request again — capped so a run of video-only fill can't loop forever.
+    private var videoRetriesRemaining = 3
 
     public init(adUnitID: String) {
         self.adUnitID = adUnitID
@@ -42,6 +48,11 @@ public final class NativeAdLoader: NSObject, ObservableObject {
 
 extension NativeAdLoader: NativeAdLoaderDelegate {
     public func adLoader(_ adLoader: AdLoader, didReceive nativeAd: NativeAd) {
+        if nativeAd.mediaContent.hasVideoContent, videoRetriesRemaining > 0 {
+            videoRetriesRemaining -= 1
+            load()
+            return
+        }
         self.nativeAd = nativeAd
     }
 
